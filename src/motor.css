@@ -1,0 +1,17 @@
+/* O que o motor acrescenta ao layout: página real na miniatura, lista de saídas e licenças. */
+.papel.real{width:auto;height:auto;max-width:92cqw;max-height:124cqw;padding:0}
+.papel.real img{display:block;width:auto;height:auto;max-width:92cqw;max-height:124cqw}
+.papel svg.ruim{width:24cqw;height:24cqw;margin:34cqw auto 0;color:var(--erro)}
+.leg.det{margin-top:1px;font-size:11px}
+.estado .progresso #etapa{margin-top:2px}
+.estado .aviso-res{max-width:460px;margin-top:14px;font-size:13px;color:var(--t2)}
+.estado .saidas,.estado .destinos{width:min(520px,100%);max-height:210px;overflow:auto;margin:16px 0 0;padding:4px;list-style:none;border-radius:14px;border:1px solid #ffffff24;text-align:left;scrollbar-color:var(--meio) transparent}
+.estado .destinos{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.estado .saidas button,.estado .destinos button{width:100%;min-width:0;display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:10px;color:var(--t1);font-size:13px;text-align:left}
+.estado .saidas button:hover,.estado .destinos button:hover{background:#ffffff14}
+.estado .saidas svg.i,.estado .destinos svg.i{flex:none;width:15px;height:15px}
+.estado .saidas span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.estado .saidas small{color:var(--t3);white-space:nowrap}
+.licencas{margin-top:24px;max-height:65vh;overflow:auto;padding:16px;border-radius:16px;border:1px solid #ffffff17;background:#0003;color:var(--t2);font:11.5px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;text-align:left}
+.rodape-site a{text-decoration:underline;text-underline-offset:3px}
+[data-tema=claro] .licencas{border-color:rgb(var(--titulo-rgb)/.16);background:#fff8}

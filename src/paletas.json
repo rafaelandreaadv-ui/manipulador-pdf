@@ -1,0 +1,29 @@
+{
+  "padrao": "petroleo",
+  "paletas": [
+    [
+      "petroleo",
+      "Petróleo e âmbar"
+    ],
+    [
+      "bordo",
+      "Bordô"
+    ],
+    [
+      "preto",
+      "Preto e lima"
+    ],
+    [
+      "ceu",
+      "Céu"
+    ],
+    [
+      "musgo",
+      "Musgo"
+    ],
+    [
+      "azul",
+      "Azul original"
+    ]
+  ]
+}
