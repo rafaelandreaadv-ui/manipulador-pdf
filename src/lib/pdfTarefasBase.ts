@@ -7,7 +7,8 @@ import { editarNoWorker } from '@/lib/pdfEdicaoCliente';
 import { abrirPdf, montarPdf, type PDFDocumentProxy } from '@/lib/pdfLeitura';
 
 export type SaidaPronta = { nome: string; blob: Blob };
-export type Resultado = { saidas: SaidaPronta[]; aviso: string | null };
+/** compressao: só no Comprimir. ganho = fração reduzida (0 a 1); proximo = nível mais forte que ainda dá para tentar. */
+export type Resultado = { saidas: SaidaPronta[]; aviso: string | null; compressao?: { nivel: string; ganho: number; proximo: string | null; jaComprimido: boolean } };
 export type AoProgresso = (fracao: number, etapa: string) => void;
 /** O que toda tarefa recebe: onde contar o andamento e o sinal de "cancelado pela pessoa". */
 export type Contexto = { aoProgresso: AoProgresso; sinal?: AbortSignal };

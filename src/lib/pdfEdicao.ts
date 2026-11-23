@@ -1,7 +1,11 @@
 // Edições com o pdf-lib, feitas dentro do Web Worker do Manipulador de PDF (src/lib/pdfEdicao.worker.ts).
 // Só bytes entram e saem: nada de rede, disco ou log. Imagens e compressão ficam em src/lib/pdfEdicaoImagens.ts.
 import { PDFDocument, PDFName, PDFRef, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import type { FormatoNumero, PosicaoNumero, PosicaoTexto } from '@/lib/filaPdf';
+import type { FormatoNumero, NivelCompressao, PosicaoNumero, PosicaoTexto } from '@/lib/filaPdf';
+
+export type { NivelCompressao };
+/** Página inteira já em JPEG e o tamanho dela no PDF (pontos), para montar o PDF rasterizado. */
+export type PaginaJpeg = { jpeg: Uint8Array; largura: number; altura: number };
 
 export type Caixa = { x: number; y: number; width: number; height: number };
 export type Jpeg = { jpeg: Uint8Array; largura: number; altura: number };
@@ -10,7 +14,6 @@ export type OpcoesNumero = { posicao: PosicaoNumero; formato: FormatoNumero; ini
 export type OpcoesMarca = { texto: string; opacidade: number };
 /** Texto fixo em canto ou centro da página (cabeçalho, rodapé, "Doc. 01"); caixa = fundo branco com borda, para ler sobre o conteúdo. */
 export type OpcoesCarimbo = { texto: string; posicao: PosicaoTexto; soPrimeira: boolean; tamanho: number; caixa: boolean; negrito: boolean };
-export type NivelCompressao = 'equilibrada' | 'forte';
 /** Devolve a imagem menor ou null quando não dá para refazer (ela fica como está no PDF). */
 export type Recodificar = (jpeg: Uint8Array, largura: number, altura: number) => Promise<Jpeg | null>;
 
@@ -24,7 +27,9 @@ export type PedidoEdicao =
   | { tipo: 'imagens'; arquivos: File[] }
   | { tipo: 'comprimir'; bytes: Uint8Array; nivel: NivelCompressao }
   /** Página já desenhada pelo pdf.js, para virar JPG/PNG aqui (fora da tela principal). */
-  | { tipo: 'codificar'; imagem: ImageBitmap; formato: 'image/jpeg' | 'image/png' };
+  | { tipo: 'codificar'; imagem: ImageBitmap; formato: 'image/jpeg' | 'image/png'; qualidade?: number }
+  /** Cada página vira uma imagem, no tamanho original (compressão máxima: o texto deixa de ser texto). */
+  | { tipo: 'paginasJpeg'; paginas: PaginaJpeg[] };
 export type MensagemWorker =
   | { id: number; progresso: number; etapa: string }
   | { id: number; bytes: Uint8Array; info?: string }

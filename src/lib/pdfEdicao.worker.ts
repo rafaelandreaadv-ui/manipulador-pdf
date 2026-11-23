@@ -4,7 +4,7 @@ import {
   ErroAmigavel, ajustarParaA4, aplicarMarcaDagua, carimbarTexto, girarPaginas, limparMetadados, numerarPaginas,
   type AoProgresso, type Jpeg, type MensagemWorker, type NivelCompressao, type PedidoEdicao,
 } from '@/lib/pdfEdicao';
-import { comprimirImagens, montarPdfDeImagens } from '@/lib/pdfEdicaoImagens';
+import { comprimirImagens, montarPdfDeImagens, montarPdfDePaginas } from '@/lib/pdfEdicaoImagens';
 
 type Escopo = {
   onmessage: ((e: MessageEvent<{ id: number; pedido: PedidoEdicao }>) => void) | null;
@@ -14,9 +14,13 @@ const escopo = self as unknown as Escopo;
 
 /** Foto de documento: até 2480 px no lado maior (A4 a 300 dpi), suficiente para leitura e impressão. */
 const LADO_FOTO = 2480;
-const COMPRESSAO: Record<NivelCompressao, { lado: number; qualidade: number }> = {
+// lado = maior lado da foto em px; numa página A4 inteira, 1286 px ≈ 110 dpi e 842 px ≈ 72 dpi.
+// Os níveis raster* não passam por aqui: a tela desenha as páginas e manda "paginasJpeg".
+const COMPRESSAO: Partial<Record<NivelCompressao, { lado: number; qualidade: number }>> = {
   equilibrada: { lado: 1800, qualidade: 0.72 },
   forte: { lado: 1240, qualidade: 0.55 },
+  mais110: { lado: 1286, qualidade: 0.45 },
+  mais72: { lado: 842, qualidade: 0.35 },
 };
 
 async function desenharJpeg(bitmap: ImageBitmap, ladoMax: number, qualidade: number): Promise<Jpeg> {
@@ -53,7 +57,9 @@ async function imagensParaPdf(arquivos: File[], aoProgresso: AoProgresso): Promi
 
 /** Refaz uma foto do PDF. null = fica como está (o navegador não a reabre igual, ex.: JPEG com giro gravado). */
 function recodificador(nivel: NivelCompressao) {
-  const { lado, qualidade } = COMPRESSAO[nivel];
+  const config = COMPRESSAO[nivel];
+  if (!config) throw new ErroAmigavel('Nível de compressão inválido para fotos.');
+  const { lado, qualidade } = config;
   return async (jpeg: Uint8Array, largura: number, altura: number): Promise<Jpeg | null> => {
     const bitmap = await createImageBitmap(new Blob([jpeg as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })).catch(() => null);
     if (!bitmap) return null;
@@ -66,13 +72,14 @@ function recodificador(nivel: NivelCompressao) {
 }
 
 /** Codifica a página desenhada pela tela principal (lá, com a aba escondida, cada codificação demora ~1 s). */
-async function codificarImagem(imagem: ImageBitmap, formato: 'image/jpeg' | 'image/png'): Promise<Uint8Array> {
+async function codificarImagem(imagem: ImageBitmap, formato: 'image/jpeg' | 'image/png', qualidade = 0.92): Promise<Uint8Array> {
   const canvas = new OffscreenCanvas(imagem.width, imagem.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new ErroAmigavel('O navegador não liberou o desenho de imagens (canvas).');
+  if (formato === 'image/jpeg') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, imagem.width, imagem.height); }
   ctx.drawImage(imagem, 0, 0);
   imagem.close();
-  const blob = await canvas.convertToBlob({ type: formato, quality: 0.92 });
+  const blob = await canvas.convertToBlob({ type: formato, quality: qualidade });
   return new Uint8Array(await blob.arrayBuffer());
 }
 
@@ -92,7 +99,8 @@ async function comprimir(p: De<'comprimir'>, aoProgresso: AoProgresso): Promise<
 }
 
 const EDICOES: Edicoes = {
-  codificar: async (p) => ({ bytes: await codificarImagem(p.imagem, p.formato) }),
+  codificar: async (p) => ({ bytes: await codificarImagem(p.imagem, p.formato, p.qualidade) }),
+  paginasJpeg: async (p) => ({ bytes: await montarPdfDePaginas(p.paginas) }),
   girar: async (p) => ({ bytes: await girarPaginas(p.bytes, p.giros) }),
   numerar: async (p) => ({ bytes: await numerarPaginas(p.bytes, p.opcoes) }),
   marcaDagua: async (p) => ({ bytes: await aplicarMarcaDagua(p.bytes, p.opcoes) }),

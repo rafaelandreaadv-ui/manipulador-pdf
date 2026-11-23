@@ -56,7 +56,8 @@ const AJUSTES = {
   documentos: [['seg', 'rotulo', 'Rótulo', 'Doc.', [['Doc.', 'Doc. 01'], ['Documento', 'Documento 01'], ['Anexo', 'Anexo 01']]], ['numero', 'inicio', 'Começar em', '1'], ['sim', 'todas', 'Em todas as páginas', false]],
   cabecalho: [['texto', 'texto', 'Texto', '', 'Ex.: Petição e anexos', 'Até 90 caracteres.'], ['lista', 'posicao', 'Posição', 'superior-centro', POSICOES], ['sim', 'primeira', 'Só na primeira página', false]],
   marca: [['texto', 'texto', 'Texto', 'CÓPIA', '', 'Até 40 caracteres, em diagonal.'], ['seg', 'forca', 'Intensidade', '0.25', [['0.15', 'Clara'], ['0.25', 'Média'], ['0.4', 'Forte']]]],
-  comprimir: [['seg', 'nivel', 'Compressão', 'equilibrada', [['equilibrada', 'Equilibrada'], ['forte', 'Forte']], 'A equilibrada serve para protocolar e ler na tela. A forte deixa a foto mais suave.']],
+  comprimir: [['seg', 'nivel', 'Compressão', 'equilibrada', [['equilibrada', 'Equilibrada'], ['forte', 'Forte']], 'A equilibrada serve para protocolar e ler na tela. A forte deixa a foto mais suave.'],
+    ['texto', 'alvo', 'Tamanho alvo em MB (opcional)', '', 'Ex.: 10', 'Se preencher, a compressão sobe de nível, perdendo qualidade, até caber.']],
   metadados: [],
 };
 const NOTAS = {
@@ -225,6 +226,10 @@ function oQueFalta(f, s) {
     const mb = Number(o.mb.replace(',', '.'));
     if (!(mb >= 0.5 && mb <= 500)) return mal('Use um valor entre 0,5 e 500 MB.');
   }
+  if (f.id === 'comprimir' && o.alvo.trim()) {
+    const mb = Number(o.alvo.replace(',', '.'));
+    if (!(mb >= 0.1 && mb <= 2000)) return mal('Tamanho alvo: use um valor entre 0,1 e 2000 MB, ou deixe em branco.');
+  }
   if ('inicio' in o) {
     const maximo = f.id === 'documentos' ? 999 : 99999, v = Number(o.inicio);
     if (!(Number.isInteger(v) && v >= 1 && v <= maximo)) return mal(`O primeiro número vai de 1 a ${maximo}.`);
@@ -257,7 +262,7 @@ function entradaDe(f, s) {
     numerar: () => ({ posicao: o.posicao, formato: o.formato, inicio: Number(o.inicio) }),
     cabecalho: () => ({ texto: o.texto.trim(), posicao: o.posicao, soPrimeira: o.primeira }),
     marca: () => ({ texto: o.texto.trim(), opacidade: Number(o.forca) }),
-    comprimir: () => ({ nivel: o.nivel }),
+    comprimir: () => ({ nivel: o.nivel, alvoMb: o.alvo.trim() ? Number(o.alvo.replace(',', '.')) : null }),
   };
   return { operacao, arquivo, ...proprios[f.id]?.() };
 }
@@ -471,6 +476,25 @@ function miniaturas(f, s) {
   }).join('');
 }
 
+const PROXIMO_NIVEL = {
+  forte: 'fotos mais suaves',
+  mais110: 'fotos em cerca de 110 dpi, perdem nitidez',
+  mais72: 'fotos em cerca de 72 dpi, perdem bastante nitidez',
+  raster110: 'cada página vira imagem (110 dpi): o texto não pode mais ser selecionado nem buscado',
+  raster72: 'cada página vira imagem (72 dpi): sem seleção de texto e leitura mais difícil',
+};
+
+// Pouco ganho, ou arquivo que já saiu daqui comprimido: dividir antes de sacrificar a qualidade.
+function caixaComprimirMais(f, s) {
+  const c = f.id === 'comprimir' && s.compressao;
+  if (!c) return '';
+  const fraco = c.jaComprimido || c.ganho < 0.4;
+  if (!fraco && !c.proximo) return '';
+  const mais = c.proximo ? `<button class="btn-vidro" id="comprimir-mais" data-mais>${i('minimize-2')}Comprimir mais${fraco ? ' mesmo assim' : ''}</button>` : '';
+  return `<div class="aviso-ambar" id="comprimir-mais-caixa">${i('triangle-alert')}<span>${fraco ? '<b>Este arquivo já está comprimido.</b> Para ficar menor sem perder qualidade, o melhor é dividir. ' : ''}${c.proximo ? `Comprimir mais: ${PROXIMO_NIVEL[c.proximo]}.` : 'Já está no nível mais forte.'}</span></div>
+    <div class="acoes">${fraco ? `<button class="btn-vidro" id="ir-dividir" data-dividir>${i('scissors')}Dividir</button>` : ''}${mais}</div>`;
+}
+
 function esquerda(f, s) {
   const frase = `<p class="desc">${f.frase}</p>`;
   if (s.fase === 'fazendo') return `${frase}<div class="estado" id="fazendo" role="status">${chip('cpu')}<h2>Mexendo no seu PDF</h2><p>Tudo aqui no seu computador. É só não fechar esta aba.</p>
@@ -482,6 +506,7 @@ function esquerda(f, s) {
     return `${frase}<div class="estado" id="pronto" role="status">${chip(n ? 'check' : 'shield-check', '', n ? 'feito' : '')}<h2>${n ? `Pronto. E <em>nada saiu daqui.</em>${PONTA}` : `Não precisou <em>mexer.</em>${PONTA}`}</h2>
     ${n ? `<div class="saida">${i(n > 1 ? 'file-archive' : 'file-text')}<div><b>${esc(n > 1 ? nomeDoZip(s.entrada) : s.saidas[0].nome)}</b><small>${n > 1 ? `${plural(n, 'arquivo', 'arquivos')} · ` : ''}${tamanhoLegivel(bytes)}</small></div></div>` : ''}
     ${s.aviso ? `<p class="aviso-res" id="aviso">${esc(s.aviso)}</p>` : ''}
+    ${caixaComprimirMais(f, s)}
     <div class="acoes">${n ? `<button class="btn-luz" id="salvar" data-salvar>${i('download')}<span>${n > 1 ? 'Salvar tudo em ZIP' : 'Salvar arquivo'}</span></button>` : ''}
       ${destinos.length ? `<button class="btn-vidro" id="outra" data-outra aria-expanded="${s.destinos}">${i('arrow-right')}Usar em outra</button>` : ''}
       <button class="btn-vidro" id="de-novo" data-de-novo>Fazer de novo</button></div>
@@ -604,7 +629,7 @@ function colocarArquivos(f, arquivos) {
 
 function limparResultado(s) {
   s.saidas.forEach((x) => URL.revokeObjectURL(x.url));
-  Object.assign(s, { fase: 'editar', saidas: [], aviso: null, entrada: null, destinos: false, erro: '', pct: 0, etapa: '' });
+  Object.assign(s, { fase: 'editar', saidas: [], aviso: null, compressao: null, entrada: null, destinos: false, erro: '', pct: 0, etapa: '' });
 }
 
 function nomeLimpo(nome) {
@@ -633,7 +658,7 @@ async function rodar(f) {
     const r = await executarTarefa(entrada, progresso, controle.signal);
     if (controle.signal.aborted) return; // cancelou no meio: o resultado tardio é descartado
     if (f.id === 'juntar' && nomeLimpo(s.op.nome)) r.saidas[0].nome = `${nomeLimpo(s.op.nome)}.pdf`;
-    Object.assign(s, { fase: 'pronto', pct: 100, aviso: r.aviso, saidas: r.saidas.map((x) => ({ ...x, url: URL.createObjectURL(x.blob) })) });
+    Object.assign(s, { fase: 'pronto', pct: 100, aviso: r.aviso, compressao: r.compressao ?? null, saidas: r.saidas.map((x) => ({ ...x, url: URL.createObjectURL(x.blob) })) });
   } catch (e) {
     if (controle.signal.aborted) return;
     Object.assign(s, { fase: 'editar', erro: mensagemDe(e, ('arquivo' in entrada ? entrada.arquivo : entrada.arquivos[0]).name) });
@@ -718,7 +743,15 @@ document.addEventListener('click', (e) => {
   else if ('uma' in d) baixarArquivo(s.saidas[+d.uma].url, s.saidas[+d.uma].nome);
   else if ('outra' in d) { s.destinos = !s.destinos; desenha(); }
   else if ('destino' in d) levarPara(s, FERRAMENTAS.find((g) => g.id === d.destino));
-  else if ('deNovo' in d) { limparResultado(s); colocarArquivos(f, []); desenha(); }
+  else if ('deNovo' in d) { limparResultado(s); colocarArquivos(f, []); if (f.id === 'comprimir') s.op.nivel = 'equilibrada'; desenha(); }
+  else if ('mais' in d) { s.op.nivel = s.compressao.proximo; s.op.alvo = ''; void rodar(f); } // refaz do original, só o nível de cima
+  else if ('dividir' in d) {
+    const g = FERRAMENTAS.find((x) => x.id === 'tamanho'), alvo = estado(g);
+    if (alvo.fase === 'fazendo') return avisar('Essa ferramenta ainda está trabalhando.');
+    limparResultado(alvo);
+    colocarArquivos(g, s.saidas.length ? s.saidas.map((x) => new File([x.blob], x.nome, { type: 'application/pdf' })) : [...s.arquivos]);
+    location.hash = `f/${g.id}`;
+  }
 });
 
 function mudarCampo(e) {

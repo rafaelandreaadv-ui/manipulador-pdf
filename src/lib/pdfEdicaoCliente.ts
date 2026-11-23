@@ -44,6 +44,7 @@ function obterWorker(): Worker {
 
 function transferiveis(pedido: PedidoEdicao): Transferable[] {
   if ('bytes' in pedido) return [pedido.bytes.buffer as ArrayBuffer];
+  if ('paginas' in pedido) return pedido.paginas.map((p) => p.jpeg.buffer as ArrayBuffer);
   return 'imagem' in pedido ? [pedido.imagem] : [];
 }
 

@@ -1,7 +1,7 @@
 // Imagens com o pdf-lib, no Web Worker do Manipulador de PDF: montar PDF A4 a partir de fotos e refazer fotos JPEG menores.
 // Só bytes entram e saem; o que depende de canvas (decodificar e redesenhar a foto) chega pronto do worker.
 import { PDFArray, PDFDocument, PDFNumber, PDFRawStream, PDFRef, type PDFDict } from 'pdf-lib';
-import { A4, N, SEM_METADADOS, abrir, salvar, type AoProgresso, type Jpeg, type Recodificar } from '@/lib/pdfEdicao';
+import { A4, N, SEM_METADADOS, abrir, salvar, type AoProgresso, type Jpeg, type PaginaJpeg, type Recodificar } from '@/lib/pdfEdicao';
 
 const MARGEM_IMAGEM = 18;
 
@@ -14,6 +14,16 @@ export async function montarPdfDeImagens(imagens: Jpeg[]): Promise<Uint8Array> {
     const [w, h] = [img.largura * escala, img.altura * escala];
     const embutida = await doc.embedJpg(img.jpeg);
     doc.addPage([lp, ap]).drawImage(embutida, { x: (lp - w) / 2, y: (ap - h) / 2, width: w, height: h });
+  }
+  return salvar(doc);
+}
+
+/** Cada página vira a sua imagem, no mesmo tamanho da original. O texto deixa de ser texto (não seleciona nem busca). */
+export async function montarPdfDePaginas(paginas: PaginaJpeg[]): Promise<Uint8Array> {
+  const doc = await PDFDocument.create(SEM_METADADOS);
+  for (const p of paginas) {
+    const embutida = await doc.embedJpg(p.jpeg);
+    doc.addPage([p.largura, p.altura]).drawImage(embutida, { x: 0, y: 0, width: p.largura, height: p.altura });
   }
   return salvar(doc);
 }

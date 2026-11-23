@@ -7,6 +7,9 @@ export type OperacaoPdf =
   | 'comprimir' | 'metadados';
 
 export type Giro = 0 | 90 | 180 | 270;
+/** Do mais leve ao mais forte. "mais*" refaz fotos em dpi menor; "raster*" transforma cada página em imagem (texto deixa de ser texto). */
+export const NIVEIS_COMPRESSAO = ['equilibrada', 'forte', 'mais110', 'mais72', 'raster110', 'raster72'] as const;
+export type NivelCompressao = typeof NIVEIS_COMPRESSAO[number];
 export type PaginaOrganizada = { indice: number; giro: Giro };
 export type PosicaoTexto = 'superior-esquerda' | 'superior-centro' | 'superior-direita' | 'inferior-esquerda' | 'inferior-centro' | 'inferior-direita';
 export type PosicaoNumero = PosicaoTexto;
@@ -30,7 +33,8 @@ export type EntradaTarefa =
   | { operacao: 'documentos'; arquivos: File[]; rotulo: RotuloDocumento; inicio: number; todasPaginas: boolean }
   | { operacao: 'cabecalho'; arquivo: File; texto: string; posicao: PosicaoTexto; soPrimeira: boolean }
   | { operacao: 'marcaDagua'; arquivo: File; texto: string; opacidade: number }
-  | { operacao: 'comprimir'; arquivo: File; nivel: 'equilibrada' | 'forte' }
+  /** alvoMb: desce os níveis, a partir de nivel, até caber (ou até o último). */
+  | { operacao: 'comprimir'; arquivo: File; nivel: NivelCompressao; alvoMb: number | null }
   | { operacao: 'metadados'; arquivo: File };
 
 /** "2,4 MB": tamanho legível, com espaço não separável. */
